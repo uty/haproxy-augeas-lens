@@ -1,21 +1,24 @@
 module Haproxy =
     autoload xfm
 
-    let eol = Util.comment_or_eol
+    let comment = [ label "#comment" . del /[ \t]*#[ \t]*/ "# "
+        . store /([^ \t\r\n].*[^ \t\r\n]|[^ \t\r\n])/ ? ]
+
+    let eol = comment ? . Util.eol 
     let hard_eol = del "\n" "\n"
     let indent = del /[ \t]*/ "    "
     let ws = del /[ \t]+/ " "
-    let empty = Util.comment_or_eol
-    let store_to_eol = store /[^ \r\t\n][^#]*[^ \r\t\n#]|[^ \t\n\r]/
+    let empty = eol
+    let store_to_eol = store /[^ \r\t\n][^#\n\r]*[^ \r\t\n#]|[^ \t\n\r]/
     let word = /[^# \n\t]+/
     let store_to_ws = store word
     let store_time = store /[0-9]+(us|ms|s|m|h|d)?/
 
-    let simple_option (r:regexp) = [ indent . key r . eol ]
-    let kv_option (r:regexp) = [ indent . key r . ws . store_to_eol . eol ]
+    let simple_option (r:regexp) = [ indent . key r ] . eol
+    let kv_option (r:regexp) = [ indent . key r . ws . store_to_eol ] . eol
     let kv_or_simple (r:regexp) = ( kv_option r | simple_option r )
-    let true_bool_option (r:regexp) = [ Util.del_str "option" . ws . key r . value "true" . eol ]
-    let false_bool_option (r:regexp) = [ Util.del_str "no option" . ws . key r . value "false" . eol ]
+    let true_bool_option (r:regexp) = [ Util.del_str "option" . ws . key r . value "true" ] . eol
+    let false_bool_option (r:regexp) = [ Util.del_str "no option" . ws . key r . value "false" ] . eol
     let bool_option (r:regexp) = indent . ( false_bool_option r | true_bool_option r )
 
     (*************************************************************************
@@ -135,8 +138,8 @@ module Haproxy =
             maxqueue | minconn | on_error | health_port | rise | slowstart |
             weight )
 
-    let default_server = [ indent . key "default-server" . 
-        ( Sep.space . default_server_options )+ . eol ]
+    let default_server = indent . [ key "default-server" . 
+        ( Sep.space . default_server_options )+ ] . eol
 
     let server =
         let name = [ label "name" . store Rx.no_spaces ] in
@@ -145,7 +148,7 @@ module Haproxy =
         let addr_and_port = addr . ( Util.del_str ":" . port )? in
         let options = ( server_options | default_server_options ) in
         indent . [ key "server" . Sep.space . name . Sep.space .
-            addr_and_port . ( Sep.space . options )* .eol ]
+            addr_and_port . ( Sep.space . options )* ] . eol
 
     (*************************************************************************
       PROXY OPTIONS
@@ -169,7 +172,7 @@ module Haproxy =
     let balance = indent . [ key "balance" . ws
         . [ label "algorithm" . store_to_ws ]
         . ( ws . [ label "params" . store_to_eol ] )?
-        ] . hard_eol
+        ] . eol
 
 
     let bind_address = [ label "bind_addr" . ( [ label "address" . store /[^ \t,]+/ ] )?
