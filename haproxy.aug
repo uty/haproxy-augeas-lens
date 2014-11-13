@@ -1,12 +1,12 @@
 module Haproxy =
     autoload xfm
 
-    let eol = Util.eol
+    let eol = Util.comment_or_eol
     let hard_eol = del "\n" "\n"
-    let indent = del /[ \t]{0,4}/ "    "
+    let indent = del /[ \t]*/ "    "
     let ws = del /[ \t]+/ " "
-    let empty = [ del /[ \t]*#?[ \t]*\n/ "\n" ]
-    let store_to_eol = store Rx.space_in
+    let empty = Util.comment_or_eol
+    let store_to_eol = store /[^ \r\t\n][^#]*[^ \r\t\n#]|[^ \t\n\r]/
     let word = /[^# \n\t]+/
     let store_to_ws = store word
     let store_time = store /[0-9]+(us|ms|s|m|h|d)?/
@@ -16,7 +16,7 @@ module Haproxy =
     let kv_or_simple (r:regexp) = ( kv_option r | simple_option r )
     let true_bool_option (r:regexp) = [ Util.del_str "option" . ws . key r . value "true" . eol ]
     let false_bool_option (r:regexp) = [ Util.del_str "no option" . ws . key r . value "false" . eol ]
-    let bool_option (r:regexp) = Util.indent . ( false_bool_option r | true_bool_option r )
+    let bool_option (r:regexp) = indent . ( false_bool_option r | true_bool_option r )
 
     (*************************************************************************
       LOG OPTION
@@ -63,38 +63,38 @@ module Haproxy =
      *************************************************************************)
     let userlist_group =
         let name = [ label "name" . store Rx.no_spaces ] in
-        let group_user = [ label "user" . store /[^ \t\n,]+/ ] in
+        let group_user = [ label "user" . store /[^ \t\n,#]+/ ] in
         let users = [ key "users" . Sep.space . group_user .
             ( Util.del_str "," . group_user )* ] in
-        indent . [ key "group" . Sep.space . name . ( Sep.space . users)? ] . Util.eol
+        indent . [ key "group" . Sep.space . name . ( Sep.space . users)? ] . eol
 
     let userlist_user =
         let name = [ label "name" . store Rx.no_spaces ] in
         let password = [ key /password|insecure-password/ . Sep.space .
             store Rx.no_spaces ] in
-        let user_group = [ label "group" . store /[^ \t\n,]+/ ] in
+        let user_group = [ label "group" . store /[^ \t\n,#]+/ ] in
         let groups = [ key "groups" . Sep.space . user_group .
             ( Util.del_str "," . user_group )* ] in
-        Util.indent . [ key "user" . Sep.space . name .
-            ( Sep.space . password )? . ( Sep.space . groups )? ] . Util.eol
+        indent . [ key "user" . Sep.space . name .
+            ( Sep.space . password )? . ( Sep.space . groups )? ] . eol
 
     let userlist =
         let name = [ label "name" . store Rx.no_spaces ] in
-        [ key "userlist" . Sep.space . name . Util.eol .
+        [ key "userlist" . Sep.space . name . eol .
             ( userlist_user | userlist_group )* ]
 
     (*************************************************************************
      SERVER AND DEFAULT-SERVER
      *************************************************************************)
     let source =
-        let addr = [ label "address" . store (/[^ \t\n:]+/ - /client(ip)?|hdr_ip.*/) ]
+        let addr = [ label "address" . store (/[^ \t\n:#]+/ - /client(ip)?|hdr_ip.*/) ]
         in let port = [ label "port" . store Rx.no_spaces ]
         in let addr_and_port = addr . ( Util.del_str ":" . port )?
         in let client = [ key "client" ]
         in let clientip = [ key "clientip" ]
         in let interface = [ key "interface" . Sep.space . store Rx.no_spaces ]
-        in let hdr = [ label "header" . store /[^ \t\n,\)]+/ ]
-        in let occ = [ label "occurrence" . store /[^ \t\n\)]+/ ]
+        in let hdr = [ label "header" . store /[^ \t\n,\)#]+/ ]
+        in let occ = [ label "occurrence" . store /[^ \t\n\)#]+/ ]
         in let hdr_ip = Util.del_str "hdr_ip(" . hdr .
             ( Util.del_str "," . occ )? . Util.del_str ")"
         in let usesrc = [ key "usesrc" . Sep.space . ( clientip | client | addr_and_port | hdr_ip ) ]
@@ -112,8 +112,8 @@ module Haproxy =
         let redir = [ key "redir" . Sep.space . store Rx.no_spaces ] in
         let server_source = source in
         let track = [ key "track" . Sep.space .
-            ( [ label "proxy" . store /[^ \t\n\/]+/ . Util.del_str "/" ] )? .
-            [ label "server" . store /[^ \t\n\/]+/ ] ] in
+            ( [ label "proxy" . store /[^ \t\n\/#]+/ . Util.del_str "/" ] )? .
+            [ label "server" . store /[^ \t\n\/#]+/ ] ] in
         ( health_addr | backup | check | cookie | disabled | id | observe |
             redir | server_source | track )
 
@@ -135,16 +135,16 @@ module Haproxy =
             maxqueue | minconn | on_error | health_port | rise | slowstart |
             weight )
 
-    let default_server = [ Util.indent . key "default-server" . 
+    let default_server = [ indent . key "default-server" . 
         ( Sep.space . default_server_options )+ . eol ]
 
     let server =
         let name = [ label "name" . store Rx.no_spaces ] in
-        let addr = [ label "address" . store /[^ \t\n:]+/ ] in
+        let addr = [ label "address" . store /[^ \t\n:#]+/ ] in
         let port = [ label "port" . store Rx.no_spaces ] in
         let addr_and_port = addr . ( Util.del_str ":" . port )? in
         let options = ( server_options | default_server_options ) in
-        Util.indent . [ key "server" . Sep.space . name . Sep.space .
+        indent . [ key "server" . Sep.space . name . Sep.space .
             addr_and_port . ( Sep.space . options )* .eol ]
 
     (*************************************************************************
@@ -152,8 +152,8 @@ module Haproxy =
      *************************************************************************)
     let acl = indent . [ key "acl" . ws
         . [ label "name" . store_to_ws ] . ws
-        . [ label "value" . store /[^ \t][^\n]+/ ]
-        ] . hard_eol
+        . [ label "value" . store_to_eol ]
+        ] . eol
 
     let appsession = indent . [ key "appsession" . ws
         . [ label "cookie" . store_to_ws ] . ws
@@ -168,7 +168,7 @@ module Haproxy =
 
     let balance = indent . [ key "balance" . ws
         . [ label "algorithm" . store_to_ws ]
-        . ( ws . [ label "params" . store /[^ \t][^\n]+/ ] )?
+        . ( ws . [ label "params" . store_to_eol ] )?
         ] . hard_eol
 
 
@@ -194,7 +194,7 @@ module Haproxy =
         ] . eol
 
     let block = indent . [ key "block" . ws
-        . [ label "condition" . store /[^ \t][^\n]+/ ]
+        . [ label "condition" . store_to_eol ]
         ] . hard_eol
 
     let capture_cookie = indent . Util.del_str "capture cookie" . ws
@@ -262,8 +262,8 @@ module Haproxy =
     let errorloc303 = error_redir "errorloc303"
 
     let force_persist = indent . [ key "force-persist" . ws
-        . [ label "condition" . store /[^ \t][^\n]+/ ]
-        ] . hard_eol
+        . [ label "condition" . store_to_eol ]
+        ] . eol
 
     let fullconn = kv_option "fullconn"
 
@@ -279,8 +279,8 @@ module Haproxy =
         . [ label "http_check_expect"
             . ( ws . [ Util.del_str "!" . label "not" ] )?
             . ws . [ label "match" . store /(status|rstatus|string|rstring)/ ]
-            . ws . [ label "pattern" . store /[^ \t][^\n]+/ ]
-        ] . hard_eol
+            . ws . [ label "pattern" . store_to_eol ]
+        ] . eol
 
     let http_check_send_state = indent . Util.del_str "http-check send-state"
         . [ label "http_check_keep_state" ] . eol
@@ -291,17 +291,17 @@ module Haproxy =
         in let realm = [ key "realm" . Sep.space . store Rx.no_spaces ]
         in let auth = [ key "auth" . ( Sep.space . realm )? ]
         in let cond = [ key /if|unless/ . Sep.space . store_to_eol ]
-        in Util.indent . [ Util.del_str "http-request" . label "http_request" .
+        in indent . [ Util.del_str "http-request" . label "http_request" .
             Sep.space . ( allow | deny | auth ) . ( Sep.space . cond )? ]
-            . Util.eol
+            . eol
 
     let http_send_name_header = kv_or_simple "http-send-name-header"
 
     let id = kv_option "id"
 
     let ignore_persist = indent . [ key "ignore-persist" . ws
-        . [ label "condition" . store /[^ \t][^\n]+/ ]
-        ] . hard_eol
+        . [ label "condition" . store_to_eol ]
+        ] . eol
 
     let log = (indent . [ key "log" . store "global" ] . eol ) | log_opt
 
@@ -311,8 +311,8 @@ module Haproxy =
 
     let monitor_fail = indent . Util.del_str "monitor fail"
         . [ key "monitor_fail" . ws
-            . [ label "condition" . store /[^ \t][^\n]+/ ]
-        ] . hard_eol
+            . [ label "condition" . store_to_eol ]
+        ] . eol
 
     let monitor_net = kv_option "monitor-net"
 
@@ -342,9 +342,9 @@ module Haproxy =
         let except = [ key "except" . Sep.space . store Rx.no_spaces ]
         in let header = [ key "header" . Sep.space . store Rx.no_spaces ]
         in let if_none = [ key "if-none" ]
-        in Util.indent . [ Util.del_str "option forwardfor" . label "forwardfor" .
+        in indent . [ Util.del_str "option forwardfor" . label "forwardfor" .
             ( Sep.space . except )? . ( Sep.space . header )? .
-            ( Sep.space . if_none )? ] . Util.eol
+            ( Sep.space . if_none )? ] . eol
 
     let http_no_delay = bool_option "http-no-delay"
 
@@ -358,15 +358,15 @@ module Haproxy =
         let uri = [ label "uri" . Sep.space . store Rx.no_spaces ]
         in let method = [ label "method" . Sep.space . store Rx.no_spaces ]
         in let version = [ label "version" . Sep.space . store_to_eol ]
-        in Util.indent . [ Util.del_str "option httpchk" . label "httpchk" .
-            ( uri | method . uri . version? )? ] . Util.eol
+        in indent . [ Util.del_str "option httpchk" . label "httpchk" .
+            ( uri | method . uri . version? )? ] . eol
 
     let httpclose = bool_option "httpclose"
 
     let httplog =
         let clf = [ Sep.space . key "clf" ]
-        in Util.indent . [ Util.del_str "option httplog" . label "httplog" .
-            clf? ] . Util.eol
+        in indent . [ Util.del_str "option httplog" . label "httplog" .
+            clf? ] . eol
 
     let http_proxy = bool_option "http_proxy"
 
@@ -382,16 +382,16 @@ module Haproxy =
 
     let mysql_check =
         let user = [ key "user" . Sep.space . store Rx.no_spaces ]
-        in Util.indent . [ Util.del_str "option mysql-check" .
-            label "mysql_check" . ( Sep.space . user )? ] . Util.eol
+        in indent . [ Util.del_str "option mysql-check" .
+            label "mysql_check" . ( Sep.space . user )? ] . eol
 
     let nolinger = bool_option "nolinger"
 
     let originalto =
         let except = [ key "except" . Sep.space . store Rx.no_spaces ]
         in let header = [ key "header" . Sep.space . store Rx.no_spaces ]
-        in Util.indent . [ Util.del_str "option originalto" . label "originalto" .
-            ( Sep.space . except )? . ( Sep.space . header )? ] . Util.eol
+        in indent . [ Util.del_str "option originalto" . label "originalto" .
+            ( Sep.space . except )? . ( Sep.space . header )? ] . eol
 
 
     let persist = bool_option "persist"
@@ -401,8 +401,8 @@ module Haproxy =
     let smtpchk =
         let hello = [ label "hello" . store Rx.no_spaces ]
         in let domain = [ label "domain" . store Rx.no_spaces ]
-        in Util.indent . [ Util.del_str "option smtpchk" . label "smtpchk" .
-            ( Sep.space . hello . Sep.space . domain )? ] . Util.eol
+        in indent . [ Util.del_str "option smtpchk" . label "smtpchk" .
+            ( Sep.space . hello . Sep.space . domain )? ] . eol
 
     let socket_stats = bool_option "socket-stats"
 
@@ -428,7 +428,7 @@ module Haproxy =
 
     let persist_rdp_cookie = indent . [ Util.del_str "persist rdp-cookie" . 
         label "persist-rdp-cookie" . ( Util.del_str "(" . store /[^\)]+/ . Util.del_str ")" )?
-        ] . hard_eol
+        ] . eol
 
     let rate_limit_sessions = indent . [ Util.del_str "rate-limit sessions" . ws .
         label "rate-limit-sessions" . store /[0-9]+/ ] . eol
@@ -441,16 +441,16 @@ module Haproxy =
         in let option_drop_query = [ key "drop-query" ]
         in let option_append_slash = [ key "append-slash" ]
         in let option_set_cookie = [ key "set-cookie" . Sep.space .
-            [ label "cookie" . store /[^ \t\n=]+/ ] .
+            [ label "cookie" . store /[^ \t\n=#]+/ ] .
             ( [ Util.del_str "=" . label "value" . store Rx.no_spaces ] )? ]
         in let option_clear_cookie = [ key "clear-cookie" . Sep.space .
             [ label "cookie" . store Rx.no_spaces ] ]
         in let options = (option_drop_query | option_append_slash | option_set_cookie | option_clear_cookie)
         in let option = [ label "options" . options . ( Sep.space . options )* ]
         in let cond = [ key /if|unless/ . Sep.space . store_to_eol ]
-        in Util.indent . [ key "redirect" . Sep.space . ( location | prefix ) .
+        in indent . [ key "redirect" . Sep.space . ( location | prefix ) .
             Sep.space . to . ( Sep.space . code )? . ( Sep.space . option )? .
-            ( Sep.space . cond )? ] . Util.eol
+            ( Sep.space . cond )? ] . eol
 
     let reqadd = kv_option "reqadd"
 
@@ -501,20 +501,20 @@ module Haproxy =
 
     let stats_admin =
         let cond = [ key /if|unless/ . Sep.space . store Rx.space_in ]
-        in Util.indent . [ Util.del_str "stats admin" . label "stats_admin" .
-            Sep.space . cond ] . Util.eol
+        in indent . [ Util.del_str "stats admin" . label "stats_admin" .
+            Sep.space . cond ] . eol
 
     let stats_auth =
-        let user = [ label "user" . store /[^ \t\n:]+/ ]
-        in let passwd = [ label "passwd" . store /[^ \t\n]+/ ]
-        in Util.indent . [ Util.del_str "stats auth" . label "stats_auth" .
-            Sep.space . user . Util.del_str ":" . passwd ] . Util.eol
+        let user = [ label "user" . store /[^ \t\n:#]+/ ]
+        in let passwd = [ label "passwd" . store word ]
+        in indent . [ Util.del_str "stats auth" . label "stats_auth" .
+            Sep.space . user . Util.del_str ":" . passwd ] . eol
 
-    let stats_enable = Util.indent . [ Util.del_str "stats enable" .
-        label "stats_enable" ] . Util.eol
+    let stats_enable = indent . [ Util.del_str "stats enable" .
+        label "stats_enable" ] . eol
 
-    let stats_hide_version = Util.indent . [ Util.del_str "stats hide-version" .
-        label "stats_hide_version" ] . Util.eol
+    let stats_hide_version = indent . [ Util.del_str "stats hide-version" .
+        label "stats_hide_version" ] . eol
 
     let stats_http_request =
         let allow = [ key "allow" ]
@@ -522,58 +522,58 @@ module Haproxy =
         in let realm = [ key "realm" . Sep.space . store Rx.no_spaces ]
         in let auth = [ key "auth" . ( Sep.space . realm )? ]
         in let cond = [ key /if|unless/ . Sep.space . store_to_eol ]
-        in Util.indent . [ Util.del_str "stats http-request" .
+        in indent . [ Util.del_str "stats http-request" .
             label "stats_http_request" . Sep.space . ( allow | deny | auth ) .
-            ( Sep.space . cond )? ] . Util.eol
+            ( Sep.space . cond )? ] . eol
 
-    let stats_realm = Util.indent . [ Util.del_str "stats realm" .
-        label "stats_realm" . Sep.space . store /[^ \t\n]+/ ] . Util.eol
+    let stats_realm = indent . [ Util.del_str "stats realm" .
+        label "stats_realm" . Sep.space . store word ] . eol
 
-    let stats_refresh = Util.indent . [ Util.del_str "stats refresh" .
-        label "stats_refresh" . Sep.space . store /[^ \t\n]+/ ] . Util.eol
+    let stats_refresh = indent . [ Util.del_str "stats refresh" .
+        label "stats_refresh" . Sep.space . store word ] . eol
 
-    let stats_scope = Util.indent . [ Util.del_str "stats scope" .
-        label "stats_scope" . Sep.space . store /[^ \t\n]+/ ] . Util.eol
+    let stats_scope = indent . [ Util.del_str "stats scope" .
+        label "stats_scope" . Sep.space . store word ] . eol
 
     let stats_show_desc =
         let desc = [ label "description" . store_to_eol ]
-        in Util.indent . [ Util.del_str "stats show-desc" .
-            label "stats_show_desc" . ( Sep.space . desc )? ] . Util.eol
+        in indent . [ Util.del_str "stats show-desc" .
+            label "stats_show_desc" . ( Sep.space . desc )? ] . eol
 
-    let stats_show_legends = Util.indent . [ Util.del_str "stats show-legends" .
-        label "stats_show_legends" ] . Util.eol
+    let stats_show_legends = indent . [ Util.del_str "stats show-legends" .
+        label "stats_show_legends" ] . eol
 
     let stats_show_node =
         let node = [ label "node" . store_to_eol ]
-        in Util.indent . [ Util.del_str "stats show-node" .
-            label "stats_show_node" . ( Sep.space . node )? ] . Util.eol
+        in indent . [ Util.del_str "stats show-node" .
+            label "stats_show_node" . ( Sep.space . node )? ] . eol
 
-    let stats_uri = Util.indent . [ Util.del_str "stats uri" .
-        label "stats_uri" . Sep.space . store_to_eol ] . Util.eol
+    let stats_uri = indent . [ Util.del_str "stats uri" .
+        label "stats_uri" . Sep.space . store_to_eol ] . eol
 
     let stick_match =
         let table = [ key "table" . Sep.space . store Rx.no_spaces ]
         in let cond = [ key /if|unless/ . Sep.space . store_to_eol ]
         in let pattern = [ label "pattern" . store Rx.no_spaces ]
-        in Util.indent . [ Util.del_str "stick match" . label "stick_match" .
+        in indent . [ Util.del_str "stick match" . label "stick_match" .
             Sep.space . pattern . ( Sep.space . table )? .
-            ( Sep.space . cond )? ] . Util.eol
+            ( Sep.space . cond )? ] . eol
 
     let stick_on =
         let table = [ key "table" . Sep.space . store Rx.no_spaces ]
         in let cond = [ key /if|unless/ . Sep.space . store_to_eol ]
         in let pattern = [ label "pattern" . store Rx.no_spaces ]
-        in Util.indent . [ Util.del_str "stick on" . label "stick_on" .
+        in indent . [ Util.del_str "stick on" . label "stick_on" .
             Sep.space . pattern . ( Sep.space . table )? .
-            ( Sep.space . cond )? ] . Util.eol
+            ( Sep.space . cond )? ] . eol
 
     let stick_store_request =
         let table = [ key "table" . Sep.space . store Rx.no_spaces ]
         in let cond = [ key /if|unless/ . Sep.space . store_to_eol ]
         in let pattern = [ label "pattern" . store Rx.no_spaces ]
-        in Util.indent . [ Util.del_str "stick store-request" .
+        in indent . [ Util.del_str "stick store-request" .
             label "stick_store_request" . Sep.space . pattern .
-            ( Sep.space . table )? . ( Sep.space . cond )? ] . Util.eol
+            ( Sep.space . table )? . ( Sep.space . cond )? ] . eol
 
     let stick_table =
         let type_ip = [ key "type" . Sep.space . store "ip" ]
@@ -585,77 +585,77 @@ module Haproxy =
         in let size = [ key "size" . Sep.space . store Rx.no_spaces ]
         in let expire = [ key "expire" . Sep.space . store Rx.no_spaces ]
         in let nopurge = [ key "nopurge" ]
-        in Util.indent . [ key "stick-table" . Sep.space . type . Sep.space .
+        in indent . [ key "stick-table" . Sep.space . type . Sep.space .
             size . ( Sep.space . expire )? . ( Sep.space . nopurge )? ] .
-            Util.eol
+            eol
 
     let tcp_request_content_accept =
         let cond = [ key /if|unless/ . Sep.space . store_to_eol ]
-        in Util.indent . [ Util.del_str "tcp-request content accept" .
+        in indent . [ Util.del_str "tcp-request content accept" .
             label "tcp_request_content_accept" . ( Sep.space . cond )? ] .
-            Util.eol
+            eol
 
     let tcp_request_content_reject =
         let cond = [ key /if|unless/ . Sep.space . store_to_eol ]
-        in Util.indent . [ Util.del_str "tcp-request content reject" .
+        in indent . [ Util.del_str "tcp-request content reject" .
             label "tcp_request_content_reject" . ( Sep.space . cond )? ] .
-            Util.eol
+            eol
 
-    let tcp_request_inspect_delay = Util.indent .
+    let tcp_request_inspect_delay = indent .
         [ Util.del_str "tcp-request inspect-delay" .
             label "tcp_request_inspect_delay" . Sep.space . store_to_eol ] .
-        Util.eol
+        eol
 
-    let timeout_check = Util.indent . [ Util.del_str "timeout check" .
-        label "timeout_check" . Sep.space . store_to_eol ] . Util.eol
+    let timeout_check = indent . [ Util.del_str "timeout check" .
+        label "timeout_check" . Sep.space . store_to_eol ] . eol
 
-    let timeout_client = Util.indent . [ Util.del_str "timeout client" .
-        label "timeout_client" . Sep.space . store_to_eol ] . Util.eol
+    let timeout_client = indent . [ Util.del_str "timeout client" .
+        label "timeout_client" . Sep.space . store_to_eol ] . eol
 
-    let timeout_clitimeout = Util.indent . [ Util.del_str "timeout clitimeout" .
-        label "timeout_clitimeout" . Sep.space . store_to_eol ] . Util.eol
+    let timeout_clitimeout = indent . [ Util.del_str "timeout clitimeout" .
+        label "timeout_clitimeout" . Sep.space . store_to_eol ] . eol
 
-    let timeout_connect = Util.indent . [ Util.del_str "timeout connect" .
-        label "timeout_connect" . Sep.space . store_to_eol ] . Util.eol
+    let timeout_connect = indent . [ Util.del_str "timeout connect" .
+        label "timeout_connect" . Sep.space . store_to_eol ] . eol
 
-    let timeout_contimeout = Util.indent . [ Util.del_str "timeout contimeout" .
-        label "timeout_contimeout" . Sep.space . store_to_eol ] . Util.eol
+    let timeout_contimeout = indent . [ Util.del_str "timeout contimeout" .
+        label "timeout_contimeout" . Sep.space . store_to_eol ] . eol
 
-    let timeout_http_keep_alive = Util.indent . [ Util.del_str "timeout http-keep-alive" .
-        label "timeout_http_keep_alive" . Sep.space . store_to_eol ] . Util.eol
+    let timeout_http_keep_alive = indent . [ Util.del_str "timeout http-keep-alive" .
+        label "timeout_http_keep_alive" . Sep.space . store_to_eol ] . eol
 
-    let timeout_http_request = Util.indent . [ Util.del_str "timeout http-request" .
-        label "timeout_http_request" . Sep.space . store_to_eol ] . Util.eol
+    let timeout_http_request = indent . [ Util.del_str "timeout http-request" .
+        label "timeout_http_request" . Sep.space . store_to_eol ] . eol
 
-    let timeout_queue = Util.indent . [ Util.del_str "timeout queue" .
-        label "timeout_queue" . Sep.space . store_to_eol ] . Util.eol
+    let timeout_queue = indent . [ Util.del_str "timeout queue" .
+        label "timeout_queue" . Sep.space . store_to_eol ] . eol
 
-    let timeout_server = Util.indent . [ Util.del_str "timeout server" .
-        label "timeout_server" . Sep.space . store_to_eol ] . Util.eol
+    let timeout_server = indent . [ Util.del_str "timeout server" .
+        label "timeout_server" . Sep.space . store_to_eol ] . eol
 
-    let timeout_srvtimeout = Util.indent . [ Util.del_str "timeout srvtimeout" .
-        label "timeout_srvtimeout" . Sep.space . store_to_eol ] . Util.eol
+    let timeout_srvtimeout = indent . [ Util.del_str "timeout srvtimeout" .
+        label "timeout_srvtimeout" . Sep.space . store_to_eol ] . eol
 
-    let timeout_tarpit = Util.indent . [ Util.del_str "timeout tarpit" .
-        label "timeout_tarpit" . Sep.space . store_to_eol ] . Util.eol
+    let timeout_tarpit = indent . [ Util.del_str "timeout tarpit" .
+        label "timeout_tarpit" . Sep.space . store_to_eol ] . eol
 
     let transparent = simple_option "transparent"
 
     let use_backend =
         let cond = [ key /if|unless/ . Sep.space . store_to_eol ]
-        in Util.indent . [ key "use_backend" . Sep.space . store Rx.no_spaces .
-        Sep.space . cond ] . Util.eol
+        in indent . [ key "use_backend" . Sep.space . store Rx.no_spaces .
+        Sep.space . cond ] . eol
 
-    let unique_id_format = Util.indent . [ key "unique-id-format" .
-        Sep.space . store_to_eol ] . Util.eol
+    let unique_id_format = indent . [ key "unique-id-format" .
+        Sep.space . store_to_eol ] . eol
 
-    let unique_id_header = Util.indent . [ key "unique-id-header" .
-        Sep.space . store_to_eol ] . Util.eol
+    let unique_id_header = indent . [ key "unique-id-header" .
+        Sep.space . store_to_eol ] . eol
 
     let use_server =
         let cond = [ key /if|unless/ . Sep.space . store_to_eol ]
-        in Util.indent . [ key "use-server" . Sep.space . store Rx.no_spaces .
-            Sep.space . cond  ] . Util.eol
+        in indent . [ key "use-server" . Sep.space . store Rx.no_spaces .
+            Sep.space . cond  ] . eol
 
     (*************************************************************************
       GLOBAL SECTION
@@ -678,12 +678,12 @@ module Haproxy =
         "tune.ssl.maxrecord" | "tune.ssl.default-dh-param" |
         "tune.zlib.memlevel" | "tune.zlib.windowsize"
 
-    let stats_bind_process = Util.indent . [ Util.del_str "stats bind-process" .
-        label "stats_bind-process" . Sep.space . store_to_eol ] . Util.eol
+    let stats_bind_process = indent . [ Util.del_str "stats bind-process" .
+        label "stats_bind-process" . Sep.space . store_to_eol ] . eol
 
     let unix_bind = 
         let kv (r:regexp) = [ key r . Sep.space . store Rx.no_spaces ] 
-        in Util.indent . [ key "unix-bind" . ( Sep.space . kv "prefix") ? .
+        in indent . [ key "unix-bind" . ( Sep.space . kv "prefix") ? .
             ( Sep.space . kv "mode") ? . ( Sep.space . kv "user") ? .
             ( Sep.space . kv "uid") ? . ( Sep.space . kv "group") ? .
             ( Sep.space . kv "gid") ? ] . eol
