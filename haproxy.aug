@@ -877,6 +877,6 @@ module Haproxy =
 
     (*************************************************************************)
 
-    let lns = empty * . ( global | defaults | listen | backend | frontend) *
+    let lns = empty * . (indent ? . (global | defaults | listen | backend | frontend)) *
 
     let xfm = transform lns (incl "/etc/haproxy/haproxy.cfg")
