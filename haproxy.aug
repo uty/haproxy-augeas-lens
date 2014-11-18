@@ -34,10 +34,11 @@ module Haproxy =
 
     let log_opt = [ indent . key "log" .
         ws . [ label "address" . store_to_ws ] .
+        ( ws . [Util.del_str "len" . ws . label "length" . store_to_ws] ) ? .
         ws . [ label "facility" . store log_facility ] .
         ( 
-            ws . [ key "max" . ws . store log_level ] . 
-            ( ws . [ key "min" . ws . store log_level ] )?
+            ws . [ label "level" . store log_level ] . 
+            ( ws . [ label "minlevel" . store log_level ] )?
         )? ] . eol
 
     (*************************************************************************
@@ -306,7 +307,8 @@ module Haproxy =
         . [ label "condition" . store_to_eol ]
         ] . eol
 
-    let log = (indent . [ key "log" . store "global" ] . eol ) | log_opt
+    let log = (indent . [ key "log" . ws . store "global" ] . eol ) | log_opt |
+        (indent . Util.del_str "no" . ws . [ key "log" . value "false" ] . eol)
 
     let maxconn = kv_option "maxconn"
 
