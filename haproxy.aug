@@ -370,7 +370,7 @@ module Haproxy =
 
     let httplog =
         let clf = [ Sep.space . key "clf" ]
-        in indent . [ Util.del_str "option httplog" . label "httplog" .
+        in indent . [ Util.del_str "option" . ws . Util.del_str "httplog" . label "httplog" .
             clf? ] . eol
 
     let http_proxy = bool_option "http_proxy"
