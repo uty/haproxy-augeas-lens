@@ -11,8 +11,8 @@ module Haproxy =
     let empty = eol
     let store_to_eol = store /[^ \r\t\n][^#\n\r]*[^ \r\t\n#]|[^ \t\n\r]/
     let word = /[^# \n\t]+/
-    let store_to_ws = store word
-    let store_time = store /[0-9]+(us|ms|s|m|h|d)?/
+    let store_to_ws = ws? . store word
+    let store_time = ws? . store /[0-9]+(us|ms|s|m|h|d)?/
 
     let simple_option (r:regexp) = [ indent . key r ] . eol
     let kv_option (r:regexp) = [ indent . key r . ws . store_to_eol ] . eol
