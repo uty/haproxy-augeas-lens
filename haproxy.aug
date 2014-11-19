@@ -211,7 +211,7 @@ module Haproxy =
         . Util.del_str "capture request header" . ws
         . [ label "capture_request_header"
             . [ label "name" . store_to_ws ] . ws
-            . [ label "len" . store /[0-9]+/ ]
+            . [ key "len" . ws . store /[0-9]+/ ]
         ] . eol
 
     let capture_response_header = indent
@@ -533,7 +533,7 @@ module Haproxy =
             ( Sep.space . cond )? ] . eol
 
     let stats_realm = indent . [ Util.del_str "stats realm" .
-        label "stats_realm" . Sep.space . store word ] . eol
+        label "stats_realm" . Sep.space . store_to_eol ] . eol
 
     let stats_refresh = indent . [ Util.del_str "stats refresh" .
         label "stats_refresh" . Sep.space . store word ] . eol
@@ -880,6 +880,6 @@ module Haproxy =
 
     (*************************************************************************)
 
-    let lns = empty * . (indent ? . (global | defaults | listen | backend | frontend)) *
+    let lns = empty * . (indent ? . (global | defaults | listen | backend | frontend | userlist)) *
 
     let xfm = transform lns (incl "/etc/haproxy/haproxy.cfg")
