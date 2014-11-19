@@ -441,6 +441,7 @@ module Haproxy =
     let redirect =
         let location = [ key "location" ]
         in let prefix = [ key "prefix" ]
+        in let scheme = [key "scheme"]
         in let to = [ label "to" . store Rx.no_spaces ]
         in let code = [ key "code" . Sep.space . store Rx.no_spaces ]
         in let option_drop_query = [ key "drop-query" ]
@@ -453,7 +454,7 @@ module Haproxy =
         in let options = (option_drop_query | option_append_slash | option_set_cookie | option_clear_cookie)
         in let option = [ label "options" . options . ( Sep.space . options )* ]
         in let cond = [ key /if|unless/ . Sep.space . store_to_eol ]
-        in indent . [ key "redirect" . Sep.space . ( location | prefix ) .
+        in indent . [ key "redirect" . Sep.space . ( location | prefix | scheme ) .
             Sep.space . to . ( Sep.space . code )? . ( Sep.space . option )? .
             ( Sep.space . cond )? ] . eol
 
