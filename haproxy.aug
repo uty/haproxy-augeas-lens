@@ -85,7 +85,7 @@ module Haproxy =
     let userlist =
         let name = [ label "name" . store Rx.no_spaces ] in
         [ key "userlist" . Sep.space . name . eol .
-            ( userlist_user | userlist_group )* ]
+            ( userlist_user | userlist_group | empty )* ]
 
     (*************************************************************************
      SERVER AND DEFAULT-SERVER
