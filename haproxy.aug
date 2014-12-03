@@ -7,6 +7,7 @@ module Haproxy =
     let eol = comment ? . Util.eol 
     let hard_eol = del "\n" "\n"
     let indent = del /[ \t]*/ "    "
+    let optional_indent = ( del /[ \t]*/ "" ) ?
     let ws = del /[ \t]+/ " "
     let empty = eol
     let store_to_eol = store /[^ \r\t\n][^#\n\r]*[^ \r\t\n#]|[^ \t\n\r]/
@@ -880,6 +881,6 @@ module Haproxy =
 
     (*************************************************************************)
 
-    let lns = empty * . (indent ? . (global | defaults | listen | backend | frontend | userlist)) *
+    let lns = empty * . (optional_indent . (global | defaults | listen | backend | frontend | userlist)) *
 
     let xfm = transform lns (incl "/etc/haproxy/haproxy.cfg")
