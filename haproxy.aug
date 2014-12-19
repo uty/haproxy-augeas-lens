@@ -849,7 +849,7 @@ module Haproxy =
 
     let listen = 
         let name = [ label "name" . store_to_ws ] in
-        [ key "listen" . Sep.space . name . ( ws . [ label "bind" . bind_address ] ) ? .
+        [ key "listen" . Sep.space . name .
         eol . (proxy_options | empty)*]
 
     (*************************************************************************
