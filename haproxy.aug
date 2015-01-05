@@ -700,10 +700,10 @@ module Haproxy =
         (simple_option global_simple_opts | kv_or_simple global_kv_opts | stats |
         log_opt | unix_bind | stats_bind_process | empty ) * ]
 
+
     (*option for future compatibility. It's essentially a fallback to simple option form*)
 
-
-    let common_option = kv_or_simple
+    let common_option = kv_or_simple /[^# \n\t\/]+/
 
     (*************************************************************************
       LISTEN SECTION
