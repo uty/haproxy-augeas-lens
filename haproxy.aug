@@ -700,9 +700,15 @@ module Haproxy =
         (simple_option global_simple_opts | kv_or_simple global_kv_opts | stats |
         log_opt | unix_bind | stats_bind_process | empty ) * ]
 
+    (*option for future compatibility. It's essentially a fallback to simple option form*)
+
+
+    let common_option = kv_or_simple
+
     (*************************************************************************
       LISTEN SECTION
      *************************************************************************)
+
 
     let proxy_options = (
         acl |
@@ -845,7 +851,8 @@ module Haproxy =
         use_backend |
         unique_id_format |
         unique_id_header |
-        use_server )
+        use_server |
+        common_option)
 
     let listen = 
         let name = [ label "name" . store_to_ws ] in
