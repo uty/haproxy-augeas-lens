@@ -4,9 +4,9 @@ module Haproxy =
     let comment = [ label "#comment" . del /[ \t]*#[ \t]*/ "# "
         . store /([^ \t\r\n].*[^ \t\r\n]|[^ \t\r\n])/ ? ]
 
-    let eol = comment ? . Util.eol 
+    let eol = comment ? . Util.eol
     let hard_eol = del "\n" "\n"
-    let indent = del /[ \t]*/ "    "
+    let indent = del /[ \t]+/ "    "
     let optional_indent = ( del /[ \t]*/ "" ) ?
     let ws = del /[ \t]+/ " "
     let empty = eol
@@ -37,8 +37,8 @@ module Haproxy =
         ws . [ label "address" . store_to_ws ] .
         ( ws . [Util.del_str "len" . ws . label "length" . store_to_ws] ) ? .
         ws . [ label "facility" . store log_facility ] .
-        ( 
-            ws . [ label "level" . store log_level ] . 
+        (
+            ws . [ label "level" . store log_level ] .
             ( ws . [ label "minlevel" . store log_level ] )?
         )? ] . eol
 
@@ -140,7 +140,7 @@ module Haproxy =
             maxqueue | minconn | on_error | health_port | rise | slowstart |
             weight )
 
-    let default_server = indent . [ key "default-server" . 
+    let default_server = indent . [ key "default-server" .
         ( Sep.space . default_server_options )+ ] . eol
 
     let server =
@@ -181,7 +181,7 @@ module Haproxy =
         . Util.del_str ":" . [ label "port" . store /[0-9-]+/ ] ]
     let bind_address_list = bind_address . ( Util.del_str "," . bind_address)*
     let bind = indent . [ key "bind" . ws
-        . bind_address_list 
+        . bind_address_list
         . ( ws . [ key "interface" . store_to_ws ] )?
         . ( ws . [ key "mss" . store_to_ws ] )?
         . ( ws . [ key "transparent" ] )?
@@ -208,7 +208,7 @@ module Haproxy =
             . [ label "len" . store /[0-9]+/ ]
         ] . eol
 
-    let capture_request_header = indent 
+    let capture_request_header = indent
         . Util.del_str "capture request header" . ws
         . [ label "capture_request_header"
             . [ label "name" . store_to_ws ] . ws
@@ -239,7 +239,7 @@ module Haproxy =
         . ( ws . [ key "maxidle" . store_time ] )?
         . ( ws . [ key "maxlife" . store_time ] )?
         ] . eol
-    
+
     (* #XXX default-server *)
 
     let default_backend = kv_option "default_backend"
@@ -327,7 +327,7 @@ module Haproxy =
     let abortonclose = bool_option "abortonclose"
 
     let accept_invalid_http_request = bool_option "accept-invalid-http-request"
-    
+
     let accept_invalid_http_response = bool_option "accept-invalid-http-response"
 
     let allbackups = bool_option "allbackups"
@@ -432,7 +432,7 @@ module Haproxy =
 
     let old_transparent = bool_option "transparent"
 
-    let persist_rdp_cookie = indent . [ Util.del_str "persist" . ws . Util.del_str "rdp-cookie" . 
+    let persist_rdp_cookie = indent . [ Util.del_str "persist" . ws . Util.del_str "rdp-cookie" .
         label "persist-rdp-cookie" . ( Util.del_str "(" . store /[^\)]+/ . Util.del_str ")" )?
         ] . eol
 
@@ -673,11 +673,11 @@ module Haproxy =
 
     let global_kv_opts = "ca-base" | "chroot" | "crt-base" | "gid" | "group" |
         "log-send-hostname" | "nbproc" | "pidfile" | "uid" | "ulimit-n" |
-        "user" | "ssl-server-verify" | "node" | "description" | 
+        "user" | "ssl-server-verify" | "node" | "description" |
         "max-spread-checks" | "maxconn" | "maxconnrate" |
         "maxcomprate" | "maxcompcpuusage" | "maxpipes" | "maxsessrate" |
         "maxsslconn" | "maxsslrate" | "spread-checks" | "tune.bufsize" |
-        "tune.chksize" | "tune.comp.maxlevel" | "tune.http.cookielen" | 
+        "tune.chksize" | "tune.comp.maxlevel" | "tune.http.cookielen" |
         "tune.http.maxhdr" | "tune.idletimer" | "tune.maxaccept" |
         "tune.maxpollevents" | "tune.maxrewrite" | "tune.pipesize" |
         "tune.rcvbuf.client" | "tune.rcvbuf.server" | "tune.sndbuf.client" |
@@ -688,8 +688,8 @@ module Haproxy =
     let stats_bind_process = indent . [ Util.del_str "stats" . ws . Util.del_str "bind-process" .
         label "stats_bind-process" . Sep.space . store_to_eol ] . eol
 
-    let unix_bind = 
-        let kv (r:regexp) = [ key r . Sep.space . store Rx.no_spaces ] 
+    let unix_bind =
+        let kv (r:regexp) = [ key r . Sep.space . store Rx.no_spaces ]
         in indent . [ key "unix-bind" . ( Sep.space . kv "prefix") ? .
             ( Sep.space . kv "mode") ? . ( Sep.space . kv "user") ? .
             ( Sep.space . kv "uid") ? . ( Sep.space . kv "group") ? .
@@ -854,7 +854,7 @@ module Haproxy =
         use_server |
         common_option)
 
-    let listen = 
+    let listen =
         let name = [ label "name" . store_to_ws ] in
         [ key "listen" . Sep.space . name .
         eol . (proxy_options | empty)*]
@@ -863,28 +863,28 @@ module Haproxy =
       BACKEND SECTION
      *************************************************************************)
 
-    let backend = 
+    let backend =
         let name = [ label "name" . store_to_ws ] in
-        [ key "backend" . Sep.space . name . eol . 
+        [ key "backend" . Sep.space . name . eol .
         (proxy_options | empty)*]
 
     (*************************************************************************
       FRONTEND SECTION
      *************************************************************************)
 
-    let frontend = 
+    let frontend =
         let name = [ label "name" . store_to_ws ] in
-        [ key "frontend" . Sep.space . name . eol . 
+        [ key "frontend" . Sep.space . name . eol .
         (proxy_options | empty)*]
 
     (*************************************************************************
       DEFAULTS SECTION
      *************************************************************************)
 
-    let defaults = 
-        [ key "defaults" . eol . 
+    let defaults =
+        [ key "defaults" . eol .
         (proxy_options | empty)*]
-        
+
 
     (*************************************************************************)
 
